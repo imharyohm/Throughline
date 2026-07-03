@@ -253,25 +253,29 @@ function buildInvalidationFact(finding: ContradictionFinding): string {
 export async function runDetector(options: { persist?: boolean } = {}): Promise<DetectorReport> {
   const { persist = true } = options;
   const assumptions = await extractLiveAssumptions();
-  const findings: ContradictionFinding[] = [];
 
-  for (const assumption of assumptions) {
-    try {
-      const finding = await detectContradiction(assumption);
-      findings.push(finding);
-    } catch (err) {
-      findings.push({
-        assumption,
-        verdict: "uncertain",
-        confidence: 0,
-        conflictingEvidence: null,
-        conflictingSource: null,
-        conflictingDate: null,
-        reason: `Detection failed: ${err instanceof Error ? err.message : String(err)}`,
-        rawCotAnswer: "",
-      });
-    }
-  }
+  // Run every assumption's COT check concurrently instead of one at a time —
+  // sequential awaits here meant N assumptions took N x ~40s (measured),
+  // which already risked a Vercel function timeout at just 7-8 assumptions
+  // and only gets worse as more get added via the live-upload feature.
+  const findings = await Promise.all(
+    assumptions.map(async (assumption): Promise<ContradictionFinding> => {
+      try {
+        return await detectContradiction(assumption);
+      } catch (err) {
+        return {
+          assumption,
+          verdict: "uncertain",
+          confidence: 0,
+          conflictingEvidence: null,
+          conflictingSource: null,
+          conflictingDate: null,
+          reason: `Detection failed: ${err instanceof Error ? err.message : String(err)}`,
+          rawCotAnswer: "",
+        };
+      }
+    }),
+  );
 
   const contradicted = findings.filter((f) => f.verdict === "contradicted").length;
   const valid = findings.filter((f) => f.verdict === "valid").length;
