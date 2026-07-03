@@ -220,16 +220,16 @@ export default function LiveUploadPanel() {
               value={date}
               onChange={(e) => setDate(e.target.value)}
               placeholder="Date (YYYY-MM-DD)"
-              className="flex-1 bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-600"
+              className="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-600"
             />
             <input
               value={type}
               onChange={(e) => setType(e.target.value)}
               placeholder="Type (e.g. postmortem)"
-              className="flex-1 bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-600"
+              className="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-600"
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-1">
             <input
               ref={fileInputRef}
               type="file"
@@ -240,13 +240,13 @@ export default function LiveUploadPanel() {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition-colors"
+              className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition-colors w-full"
             >
               <Paperclip size={12} />
               Upload a file
             </button>
-            <span className="text-[11px] text-slate-500 truncate">
-              {fileName ?? "commit log, meeting notes, .md/.txt — or just paste below"}
+            <span className="text-[10px] text-slate-500 truncate" title={fileName ?? undefined}>
+              {fileName ?? "commit log, meeting notes, .md/.txt — or paste below"}
             </span>
           </div>
           {fileError && <div className="text-[11px] text-rose-400">{fileError}</div>}
@@ -260,11 +260,14 @@ export default function LiveUploadPanel() {
             rows={5}
             className="bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-600 resize-none"
           />
-          <div className="flex gap-2">
+          <label className="flex flex-col gap-1">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider">
+              Node set
+            </span>
             <select
               value={nodeSet}
               onChange={(e) => setNodeSet(e.target.value)}
-              className="flex-1 bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-300"
+              className="bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-300"
             >
               {NODE_SETS.map((ns) => (
                 <option key={ns} value={ns}>
@@ -272,19 +275,24 @@ export default function LiveUploadPanel() {
                 </option>
               ))}
             </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider">
+              Target assumption
+            </span>
             <select
               value={targetAssumptionId}
               onChange={(e) => setTargetAssumptionId(e.target.value)}
-              className="flex-1 bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-300"
+              className="bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-300 w-full"
             >
-              <option value="">Check all assumptions</option>
+              <option value="">Check all assumptions (slower)</option>
               {assumptions.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.id} — {a.text.slice(0, 30)}…
+                  {a.id} — {a.text.slice(0, 40)}…
                 </option>
               ))}
             </select>
-          </div>
+          </label>
           <button
             type="submit"
             disabled={!title.trim() || !content.trim()}

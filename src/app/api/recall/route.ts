@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recall, SearchType, SESSION_ID } from "@/lib/cognee";
 import { extractAssumptions, detectContradiction } from "@/lib/detector";
+import { degradedRecall } from "@/lib/llm/fallback";
+import type { RecallResult } from "@/lib/cognee";
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,14 +22,31 @@ export async function POST(req: NextRequest) {
       ...(useSessionMemory ? { sessionId: SESSION_ID } : {}),
       ...(nodeName ? { nodeName } : {}),
     };
-    const result = await recall(
-      query,
-      queryType as SearchType,
-      Object.keys(opts).length ? opts : undefined,
-    );
 
-    if (!withDetector) {
-      return NextResponse.json({ query, queryType, result });
+    let result: RecallResult;
+    let degraded = false;
+    try {
+      result = await recall(
+        query,
+        queryType as SearchType,
+        Object.keys(opts).length ? opts : undefined,
+      );
+    } catch (recallErr) {
+      // Cognee Cloud has already exhausted its own retries (cloud.ts's
+      // req(), 3 attempts with backoff) and thrown — this is the "Cognee is
+      // genuinely down" case the plan's Day-6 doc names as its worst-case
+      // demo risk. Answer directly from the static corpus via Groq instead
+      // of surfacing a raw error: no graph, no multi-hop trace, no
+      // contradiction detection, but a live answer instead of a dead screen.
+      const fallback = await degradedRecall(query).catch(() => null);
+      if (!fallback) throw recallErr; // Groq fallback ALSO failed — surface the original error
+      result = { answer: fallback.answer, target: "cloud", source: "degraded-groq-fallback" };
+      degraded = true;
+    }
+
+    if (!withDetector || degraded) {
+      // No graph in degraded mode — nothing for the detector to trace.
+      return NextResponse.json({ query, queryType, result, degraded });
     }
 
     const assumptions = extractAssumptions();

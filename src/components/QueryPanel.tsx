@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   XCircle,
   CheckCircle2,
+  MessageSquareText,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -45,6 +46,12 @@ interface Message {
   source?: string;
   reinforced?: boolean;
   reinforcing?: boolean;
+  /** True when Cognee's own recall failed and this answer came from the
+   *  Groq degraded-mode fallback instead (raw corpus, no graph/detector). */
+  degraded?: boolean;
+  /** Plain-English rewrite of `content`, fetched on demand via /api/summarize. */
+  plainSummary?: string;
+  summarizing?: boolean;
 }
 
 const SEARCH_TYPES: { value: SearchType; label: string; description: string }[] = [
@@ -168,6 +175,7 @@ export default function QueryPanel() {
         raw: data.result,
         sourceQuery: q,
         source: data.result?.source,
+        degraded: Boolean(data.degraded),
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, assistantMsg]);
@@ -204,6 +212,31 @@ export default function QueryPanel() {
     } catch {
       setMessages((prev) =>
         prev.map((m, i) => (i === index ? { ...m, reinforcing: false } : m))
+      );
+    }
+  }
+
+  async function summarizeSimply(index: number) {
+    const msg = messages[index];
+    setMessages((prev) =>
+      prev.map((m, i) => (i === index ? { ...m, summarizing: true } : m))
+    );
+    try {
+      const res = await fetch("/api/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answer: msg.content }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setMessages((prev) =>
+        prev.map((m, i) =>
+          i === index ? { ...m, summarizing: false, plainSummary: data.summary } : m
+        )
+      );
+    } catch {
+      setMessages((prev) =>
+        prev.map((m, i) => (i === index ? { ...m, summarizing: false } : m))
       );
     }
   }
@@ -253,6 +286,15 @@ export default function QueryPanel() {
                 <span className="inline-block text-[10px] font-mono uppercase tracking-wider opacity-70 mb-1">
                   {msg.queryType}
                 </span>
+              )}
+              {msg.role === "assistant" && msg.degraded && (
+                <div className="mb-2 flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-white shadow-sm">
+                  <AlertTriangle size={15} className="shrink-0" />
+                  <span className="text-xs font-bold">
+                    Cognee unavailable — answered directly by LLM from raw
+                    documents, no graph or contradiction check
+                  </span>
+                </div>
               )}
               {msg.role === "assistant" &&
                 msg.contradictions?.some((c) => c.verdict === "contradicted") && (
@@ -348,6 +390,14 @@ export default function QueryPanel() {
                   ))}
                 </div>
               )}
+              {msg.role === "assistant" && msg.plainSummary && (
+                <div className="mt-2 rounded-lg bg-sky-950/30 border border-sky-800/40 p-2.5">
+                  <div className="text-[10px] font-bold text-sky-300 uppercase tracking-wider mb-1">
+                    In plain English
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">{msg.plainSummary}</p>
+                </div>
+              )}
               {msg.role === "assistant" && msg.sourceQuery && (
                 <div className="mt-2 pt-2 border-t border-slate-700/50 flex items-center gap-2">
                   {msg.source && (
@@ -361,11 +411,29 @@ export default function QueryPanel() {
                       source: {msg.source}
                     </span>
                   )}
+                  {!msg.plainSummary && (
+                    <button
+                      type="button"
+                      onClick={() => summarizeSimply(i)}
+                      disabled={msg.summarizing}
+                      title="Rewrite this answer as one plain-English paragraph for a non-technical viewer"
+                      className="ml-auto flex items-center gap-1 text-[10px] px-2 py-1 rounded text-sky-400 hover:bg-sky-900/30 transition-colors disabled:opacity-60"
+                    >
+                      {msg.summarizing ? (
+                        <Loader2 size={10} className="animate-spin" />
+                      ) : (
+                        <MessageSquareText size={10} />
+                      )}
+                      Explain simply
+                    </button>
+                  )}
                   <button
                     onClick={() => reinforce(i)}
                     disabled={msg.reinforcing || msg.reinforced}
                     title="Saves this Q&A as feedback in session memory so it can be recalled later — does not reweight the graph (Cognee Cloud has no such endpoint)"
-                    className={`ml-auto flex items-center gap-1 text-[10px] px-2 py-1 rounded transition-colors ${
+                    className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded transition-colors ${
+                      msg.plainSummary ? "ml-auto" : ""
+                    } ${
                       msg.reinforced
                         ? "text-emerald-400"
                         : "text-amber-400 hover:bg-amber-900/30"
