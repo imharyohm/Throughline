@@ -4,6 +4,7 @@ import IngestPanel from "@/components/IngestPanel";
 import GraphPanel from "@/components/GraphPanel";
 import QueryPanel from "@/components/QueryPanel";
 import DetectorPanel from "@/components/DetectorPanel";
+import LiveUploadPanel from "@/components/LiveUploadPanel";
 
 export default function Home() {
   return (
@@ -18,8 +19,9 @@ export default function Home() {
             Decision &amp; rationale memory agent
           </p>
         </div>
-        <div className="p-4 flex-1 overflow-y-auto">
+        <div className="p-4 flex-1 overflow-y-auto flex flex-col gap-4">
           <IngestPanel />
+          <LiveUploadPanel />
         </div>
       </aside>
 
