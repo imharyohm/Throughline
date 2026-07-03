@@ -7,6 +7,7 @@ import {
 import type {
   CogneeAdapter,
   ImproveInput,
+  RawArtifact,
   RecallOptions,
   RecallResult,
   RememberResult,
@@ -105,5 +106,12 @@ export const localAdapter: CogneeAdapter = {
 
   async visualize(): Promise<string> {
     return `<html><body style="font-family:monospace;color:#94a3b8;background:#0f172a;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">No graph visualization endpoint wired up for the local target.</body></html>`;
+  },
+
+  async listArtifacts(): Promise<RawArtifact[]> {
+    // The OSS REST surface has no equivalent "list + fetch raw" pair verified
+    // against a running container in this environment (see day-1 notes).
+    // Falls back to nothing rather than guessing at an endpoint shape.
+    return [];
   },
 };

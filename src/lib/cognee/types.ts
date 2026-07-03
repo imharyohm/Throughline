@@ -86,4 +86,22 @@ export interface CogneeAdapter {
 
   /** Real HTML/D3 graph visualization for the dataset (Cognee's own renderer). */
   visualize(): Promise<string>;
+
+  /**
+   * List every artifact actually remembered into the dataset, with its raw
+   * text — the live source of truth, not the static demo corpus file. Lets
+   * assumption extraction pick up anything ingested after startup (e.g. via
+   * the live-upload feature), not just the 7 artifacts baked into
+   * data/corpus/index.ts.
+   */
+  listArtifacts(): Promise<RawArtifact[]>;
+}
+
+export interface RawArtifact {
+  id: string;
+  /** Parsed from the "[TYPE] Title" header this app writes on ingest, when present. */
+  title: string;
+  date: string;
+  type: string;
+  content: string;
 }

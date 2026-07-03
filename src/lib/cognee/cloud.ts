@@ -2,6 +2,7 @@ import { CLOUD_API_KEY, CLOUD_BASE, DATASET, SESSION_ID } from "./config";
 import type {
   CogneeAdapter,
   ImproveInput,
+  RawArtifact,
   RecallOptions,
   RecallResult,
   RememberResult,
@@ -235,5 +236,36 @@ export const cloudAdapter: CogneeAdapter = {
       throw new Error(`Cognee cloud GET /visualize → ${res.status}: ${await res.text()}`);
     }
     return res.text();
+  },
+
+  // Reads the dataset's actual current data — the live source of truth —
+  // rather than the static demo corpus file, so newly `remember()`ed
+  // artifacts (e.g. from the live-upload feature) are visible to anything
+  // that needs to re-derive assumptions, not just the original 7 seed docs.
+  async listArtifacts(): Promise<RawArtifact[]> {
+    const datasetId = await resolveDatasetId();
+    const items = await req<{ id: string }[]>("GET", `/datasets/${datasetId}/data`);
+
+    const artifacts = await Promise.all(
+      items.map(async (item): Promise<RawArtifact | null> => {
+        const url = `${CLOUD_BASE}/datasets/${datasetId}/data/${item.id}/raw`;
+        const res = await fetch(url, { headers: { "X-Api-Key": CLOUD_API_KEY } });
+        if (!res.ok) return null;
+        const raw = await res.text();
+
+        // Matches the "[TYPE] Title\nDate: date\n\ncontent" header both
+        // /api/ingest and /api/ingest/live write. Falls back to treating the
+        // whole raw text as content for anything that doesn't match (e.g.
+        // detector findings, which use a different format on purpose).
+        const match = raw.match(/^\[([^\]]+)\]\s*(.+?)\nDate:\s*(.*?)\n\n([\s\S]*)$/);
+        if (!match) {
+          return { id: item.id, title: item.id, date: "", type: "", content: raw };
+        }
+        const [, type, title, date, content] = match;
+        return { id: item.id, title, date, type: type.toLowerCase(), content };
+      }),
+    );
+
+    return artifacts.filter((a): a is RawArtifact => a !== null);
   },
 };

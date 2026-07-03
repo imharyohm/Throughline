@@ -1,4 +1,5 @@
-import { cognify, recall, remember } from "./cognee";
+import { cognify, listArtifacts, recall, remember } from "./cognee";
+import type { RawArtifact } from "./cognee";
 import { corpus } from "../../data/corpus";
 
 export interface Assumption {
@@ -54,6 +55,54 @@ export function extractAssumptions(): Assumption[] {
   }
 
   return assumptions;
+}
+
+function assumptionsFromContent(content: string): { id: string; text: string }[] {
+  const found: { id: string; text: string }[] = [];
+  for (const line of content.split("\n")) {
+    const match = line.match(/\*\*([Aa]\d+)\*\*:\s*(.+)/);
+    if (match) {
+      found.push({ id: match[1].toUpperCase(), text: match[2].trim().replace(/\.$/, "") });
+    }
+  }
+  return found;
+}
+
+/**
+ * Same as extractAssumptions(), but sourced live from Cognee's own dataset
+ * instead of the static corpus file — so an assumption pattern in a document
+ * added after startup (e.g. via the live-upload feature) is picked up too,
+ * not just the 7 baked into data/corpus/index.ts. Static entries win on id
+ * collision (readable attribution — "adr-001" beats a raw Cognee data uuid);
+ * only genuinely new ids get their attribution from the live artifact.
+ */
+export async function extractLiveAssumptions(): Promise<Assumption[]> {
+  const byId = new Map<string, Assumption>();
+  for (const a of extractAssumptions()) byId.set(a.id, a);
+
+  let liveArtifacts: RawArtifact[];
+  try {
+    liveArtifacts = await listArtifacts();
+  } catch {
+    return Array.from(byId.values()); // Cognee unreachable — static list is still a valid fallback
+  }
+
+  for (const artifact of liveArtifacts) {
+    for (const found of assumptionsFromContent(artifact.content)) {
+      if (byId.has(found.id)) continue;
+      byId.set(found.id, {
+        id: found.id,
+        text: found.text,
+        sourceArtifact: artifact.id,
+        sourceTitle: artifact.title || artifact.id,
+        date: artifact.date,
+      });
+    }
+  }
+
+  return Array.from(byId.values()).sort((a, b) =>
+    a.id.localeCompare(b.id, undefined, { numeric: true }),
+  );
 }
 
 function parseVerdict(answer: string): {
@@ -203,7 +252,7 @@ function buildInvalidationFact(finding: ContradictionFinding): string {
 
 export async function runDetector(options: { persist?: boolean } = {}): Promise<DetectorReport> {
   const { persist = true } = options;
-  const assumptions = extractAssumptions();
+  const assumptions = await extractLiveAssumptions();
   const findings: ContradictionFinding[] = [];
 
   for (const assumption of assumptions) {

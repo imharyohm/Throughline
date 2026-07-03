@@ -12,13 +12,14 @@ import { mockAdapter } from "./mock";
 import type {
   CogneeAdapter,
   ImproveInput,
+  RawArtifact,
   RecallOptions,
   RecallResult,
   RememberResult,
   SearchType,
 } from "./types";
 
-export type { CogneeAdapter, ImproveInput, RecallOptions, RecallResult, RememberResult, SearchType };
+export type { CogneeAdapter, ImproveInput, RawArtifact, RecallOptions, RecallResult, RememberResult, SearchType };
 export type { CogneeTarget } from "./types";
 export { SESSION_ID };
 
@@ -75,4 +76,9 @@ export function getCognifyStatus(): Promise<unknown> {
 /** Real HTML/D3 graph visualization for the dataset. */
 export function visualize(): Promise<string> {
   return client.visualize();
+}
+
+/** Every artifact actually in the dataset right now, raw text included. */
+export function listArtifacts(): Promise<RawArtifact[]> {
+  return client.listArtifacts();
 }

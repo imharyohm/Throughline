@@ -1,6 +1,7 @@
 import type {
   CogneeAdapter,
   ImproveInput,
+  RawArtifact,
   RecallOptions,
   RecallResult,
   RememberResult,
@@ -124,5 +125,14 @@ export const mockAdapter: CogneeAdapter = {
       )
       .join("\n");
     return `<html><body style="margin:0;background:#0f172a"><svg width="100%" height="100%" viewBox="0 0 560 350">${edgesSvg}${nodesSvg}</svg></body></html>`;
+  },
+
+  async listArtifacts(): Promise<RawArtifact[]> {
+    return remembered.map((content, i) => {
+      const match = content.match(/^\[([^\]]+)\]\s*(.+?)\nDate:\s*(.*?)\n\n([\s\S]*)$/);
+      if (!match) return { id: `mock-${i}`, title: `mock-${i}`, date: "", type: "", content };
+      const [, type, title, date, body] = match;
+      return { id: `mock-${i}`, title, date, type: type.toLowerCase(), content: body };
+    });
   },
 };

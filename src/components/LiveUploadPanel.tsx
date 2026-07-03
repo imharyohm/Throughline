@@ -7,8 +7,15 @@ import {
   CheckCircle2,
   AlertTriangle,
   Clock,
+  Paperclip,
 } from "lucide-react";
 import { NODE_SETS } from "@/lib/ontology";
+
+// Text-shaped files only — commit logs, meeting notes, markdown docs. Cognee
+// ingests plain text (see remember()); there's no PDF/DOCX parsing anywhere
+// in this pipeline, so anything else would just get remembered as noise.
+const ACCEPTED_EXTENSIONS = ".txt,.md,.markdown,.log,.diff,.patch";
+const MAX_FILE_BYTES = 500_000;
 
 interface Assumption {
   id: string;
@@ -39,6 +46,9 @@ export default function LiveUploadPanel() {
   const [nodeSet, setNodeSet] = useState("outcomes");
   const [targetAssumptionId, setTargetAssumptionId] = useState("");
   const [assumptions, setAssumptions] = useState<Assumption[]>([]);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -138,6 +148,32 @@ export default function LiveUploadPanel() {
     setTargetAssumptionId("");
     setFindings([]);
     setError(null);
+    setFileName(null);
+    setFileError(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileError(null);
+
+    if (file.size > MAX_FILE_BYTES) {
+      setFileError(`File too large (${Math.round(file.size / 1000)}KB) — keep it under 500KB.`);
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      setContent(text);
+      if (!title.trim()) {
+        // "commit-abc123.diff" -> "commit-abc123"
+        setTitle(file.name.replace(/\.[^./]+$/, ""));
+      }
+      setFileName(file.name);
+    } catch {
+      setFileError("Couldn't read that file as text.");
+    }
   }
 
   if (!open) {
@@ -193,10 +229,34 @@ export default function LiveUploadPanel() {
               className="flex-1 bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-600"
             />
           </div>
+          <div className="flex items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPTED_EXTENSIONS}
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition-colors"
+            >
+              <Paperclip size={12} />
+              Upload a file
+            </button>
+            <span className="text-[11px] text-slate-500 truncate">
+              {fileName ?? "commit log, meeting notes, .md/.txt — or just paste below"}
+            </span>
+          </div>
+          {fileError && <div className="text-[11px] text-rose-400">{fileError}</div>}
           <textarea
             value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Document content…"
+            onChange={(e) => {
+              setContent(e.target.value);
+              setFileName(null); // manual edit — the "from file X" label no longer applies
+            }}
+            placeholder="Document content… (or upload a file above)"
             rows={5}
             className="bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-600 resize-none"
           />

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   runDetector,
   detectContradiction,
-  extractAssumptions,
+  extractLiveAssumptions,
 } from "@/lib/detector";
 
 export async function POST(req: NextRequest) {
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     const { assumptionId, persist = true } = await req.json().catch(() => ({}));
 
     if (assumptionId) {
-      const assumptions = extractAssumptions();
+      const assumptions = await extractLiveAssumptions();
       const target = assumptions.find(
         (a) => a.id.toUpperCase() === assumptionId.toUpperCase()
       );
@@ -33,6 +33,6 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-  const assumptions = extractAssumptions();
+  const assumptions = await extractLiveAssumptions();
   return NextResponse.json({ assumptions });
 }
