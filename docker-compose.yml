@@ -1,0 +1,43 @@
+# Self-hosted Cognee for local development (day-1 spine).
+#
+#   docker compose up      -> backend REST on http://localhost:8000/api/v1
+#
+# Uses Groq for LLM + litellm-routed embeddings. The app's local adapter
+# (src/lib/cognee/local.ts) talks to this on :8000.
+
+services:
+  cognee:
+    image: cognee/cognee:main
+    ports:
+      - "8000:8000"
+    environment:
+      # -- LLM via Groq --
+      LLM_PROVIDER: ${LLM_PROVIDER:-groq}
+      LLM_MODEL: ${LLM_MODEL:-llama-3.3-70b-versatile}
+      LLM_API_KEY: ${LLM_API_KEY:?set LLM_API_KEY in .env}
+      # -- Embeddings via litellm (routes through Groq's OpenAI-compat API) --
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-litellm}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-groq/llama-3.3-70b-versatile}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-${LLM_API_KEY}}
+      # -- Groq API key for litellm routing --
+      GROQ_API_KEY: ${LLM_API_KEY}
+      # -- default user the local adapter logs in as --
+      DEFAULT_USER_EMAIL: ${COGNEE_LOCAL_USER:-default@throughline.dev}
+      DEFAULT_USER_PASSWORD: ${COGNEE_LOCAL_PASSWORD:-throughline-dev}
+      # -- local stores --
+      DB_PROVIDER: ${DB_PROVIDER:-sqlite}
+      VECTOR_DB_PROVIDER: ${VECTOR_DB_PROVIDER:-lancedb}
+      GRAPH_DATABASE_PROVIDER: ${GRAPH_DATABASE_PROVIDER:-kuzu}
+    volumes:
+      - cognee_data:/app/.cognee_system
+      - cognee_storage:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+
+volumes:
+  cognee_data:
+  cognee_storage:

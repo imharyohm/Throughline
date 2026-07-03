@@ -30,8 +30,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files (real secrets — never commit; example templates stay tracked)
+.env
+.env.local
+.env*.local
+!.env.example
+!.env.local.example
 
 # vercel
 .vercel
@@ -39,3 +43,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# planning notes / internal docs — not part of the shipped project
+/plan/
+FLOWCHART.md
+
+# screenshots / ad-hoc images at repo root
+/*.png
+/*.jpg
+/*.jpeg
+
+# local tool config
+.claude/
