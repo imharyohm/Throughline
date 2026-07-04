@@ -66,15 +66,6 @@ Search types used: `GRAPH_COMPLETION_COT` (headline multi-hop), `TEMPORAL`
 ("what did we believe when…"), and `RAG_COMPLETION` (the "no context" baseline in
 the before/after demo).
 
-## Known platform limitations (designed around)
-
-- **#3520** — recall can leak across datasets → **single-dataset tenant**
-  (`COGNEE_DATASET=throughline_demo`).
-- **#3526** — `forget()` may keep surfacing deleted facts in recall → verified Day 3;
-  fallback is the graph-endpoint view.
-- **#3498** — `importance_weight >= 2.0` corrupts ranking → kept in `[0, 2]`.
-- **#3627–3631** — Cognee does not auto-detect contradictions → that's exactly what
-  the Contradiction Detector adds.
 
 ## Cognee Cloud API — verified directly against this tenant
 
