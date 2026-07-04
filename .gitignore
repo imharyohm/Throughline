@@ -45,7 +45,9 @@ yarn-error.log*
 next-env.d.ts
 
 # planning notes / internal docs — not part of the shipped project
-/plan/
+# (/plan/* instead of /plan/ so the architecture diagram can be un-ignored)
+/plan/*
+!/plan/architecture.png
 FLOWCHART.md
 
 # screenshots / ad-hoc images at repo root
